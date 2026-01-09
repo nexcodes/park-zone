@@ -2,153 +2,138 @@
 
 ## Project Context
 
-This is a **Data Structures & Algorithms (DSA) academic project** implementing a Smart Parking Allocation & Management System in C++ with Qt UI.
+This is a **Data Structures & Algorithms (DSA) academic project** implementing a Smart Parking Allocation & Management System in C++ (currently console-based, Qt UI planned for Phase 4).
 
 **Critical Constraints**: 
-- Do NOT use STL containers (map, unordered_map, set, vector) for core logic
-- Implement custom data structures using arrays, pointers, linked lists, stacks, and queues
-- **The entire project must be in-memory** (no database, no file I/O for data persistence)
-- **No global variables allowed**
-- **Multi-file implementation is mandatory** (separate .h/.cpp files for each class)
-- **Header files must contain declarations only** (no implementation in headers except inline functions)
+- ❌ NO STL containers (map, unordered_map, set, vector) in core logic
+- ✅ Custom data structures only: DynamicArray, LinkedList, Stack, Queue templates
+- ✅ In-memory storage (no database/file persistence)
+- ✅ No global variables
+- ✅ Multi-file implementation with separate .h/.cpp files
 
-## Architecture Overview
+## Architecture & Data Flow
 
 ```
-Qt UI → ParkingSystem (Controller) → AllocationEngine ↔ RollbackManager
-                                   → Zone → ParkingArea → ParkingSlot
-                                   → Vehicle
+ParkingSystem (Controller)
+  ├── AllocationEngine (handles slot assignment logic)
+  │   └── RollbackManager (stack-based undo operations)
+  ├── AnalyticsEngine (queries trip history)
+  ├── StateValidator (enforces state machine rules)
+  └── zones: DynamicArray<Zone*>
+       └── areas: DynamicArray<ParkingArea*>
+            └── slots: DynamicArray<ParkingSlot*>
 ```
 
-**Entity Hierarchy**: City → Zones → Parking Areas → Parking Slots
+**Entity Hierarchy**: Zones → Parking Areas → Parking Slots (e.g., Downtown → Level 1 → Slot 1001)
 
-**Required File Structure**:
-- `Zone.h` / `Zone.cpp`
-- `ParkingArea.h` / `ParkingArea.cpp`
-- `ParkingSlot.h` / `ParkingSlot.cpp`
-- `Vehicle.h` / `Vehicle.cpp`
-- `ParkingRequest.h` / `ParkingRequest.cpp`
-- `AllocationEngine.h` / `AllocationEngine.cpp`
-- `RollbackManager.h` / `RollbackManager.cpp`
-- `ParkingSystem.h` / `ParkingSystem.cpp`
-- `main.cpp`
+## Custom Data Structures (src/include/)
 
-This structure is modifiable according to requirements but multi-file separation is mandatory.
+All templates implemented in headers (required for C++ templates):
 
-## Core Data Structures (Manual Implementation Required)
-
-- **Arrays/Dynamic Arrays**: Store zones and parking areas (in-memory)
-- **Linked Lists**: Parking request history and trip history
-- **Stacks**: Rollback operations (stores slot ID, previous state, request state)
-- **Queues**: Incoming parking requests
-- **Custom Adjacency/Zone Relationship Structure**: Zone connections using array of zone IDs (not std::vector)
-  - No routing graph required, only logical zone connections
-  - Implement zone preference rules
-
-## State Machine (Enforce Strictly)
-
-Valid transitions:
-- `REQUESTED → ALLOCATED → OCCUPIED → RELEASED`
-- `REQUESTED → CANCELLED`
-- `ALLOCATED → CANCELLED`
-
-Block invalid transitions (e.g., OCCUPIED → REQUESTED).
-
-## Development Workflow
-
-1. **Console-first approach**: Complete all core logic in `main.cpp` with console I/O before touching Qt
-2. **UI is a thin layer**: Qt widgets should only call methods from `ParkingSystem`, never contain business logic
-3. **Build**: Use CMake or qmake for Qt integration (CMake preferred)
-
-## Key Classes & Responsibilities
-
-- **ParkingSlot**: 
-  - Properties: Slot ID, Zone ID, availability status
-  - Methods: `allocate()`, `release()`
+- **DynamicArray<T>**: Auto-resizing array with `add()`, `get()`, `remove()`, `[]` operator
+  - Example: `DynamicArray<Zone*> zones;`
   
-- **ParkingArea**: 
-  - Contains array of parking slots
-  - Finds first available slot using first-available strategy
+- **LinkedList<T>**: Singly-linked list with `append()`, `prepend()`, `find()`, iterator support
+  - Example: `LinkedList<TripHistory> tripHistory;`
   
-- **Zone**: 
-  - Contains array of parking areas
-  - Custom adjacency array for logically connected zones
-  - Zone preference rules for allocation
+- **Stack**: Fixed-size stack (100 operations) storing `OperationLog` structs
+  - Used by RollbackManager to undo allocations
   
-- **Vehicle**: 
-  - Properties: Vehicle ID, preferred zone
-  
-- **ParkingRequest**: 
-  - Properties: Vehicle ID, requested zone, request time, current state (enum)
-  - Lifecycle: REQUESTED → ALLOCATED → OCCUPIED → RELEASED (or CANCELLED)
-  
-- **AllocationEngine**: 
-  - Same-zone preference with first-available slot strategy
-  - Cross-zone allocation allowed if requested zone is full (incurs extra cost/penalty)
-  
-- **RollbackManager**: 
-  - Stack-based undo of last k allocation operations
-  - Must restore slot availability AND request state changes
-  - Must recalculate analytics data after rollback
-  
-- **ParkingSystem**: 
-  - Main controller connecting all components
-  - Maintains trip history and analytics
-  - Provides query support for analytics
+- **Queue<T>**: Circular queue for incoming requests (not yet used in current implementation)
 
-## Critical Implementation Details
+- **Enums.h**: `RequestState` (REQUESTED, ALLOCATED, OCCUPIED, RELEASED, CANCELLED), `SlotStatus`
 
-- **In-Memory Storage**: All data must be stored in memory using custom data structures (no database, no file I/O)
+## State Machine (StateValidator enforces)
 
-- **Allocation Logic**: 
-  - Try requested zone first using first-available slot strategy
-  - If requested zone is full, try adjacent/connected zones with extra cost/penalty
-  - Same-zone preference must be enforced
-  
-- **Cancellation & Rolmust be implemented, covering:
-- **Slot allocation correctness** (same-zone allocation)
-- **Cross-zone allocation handling** (when requested zone is full)
-- **Cancellation correctness** (before and after allocation)
-- **Rollback correctness** (restore slot availability and request states)
-- **Invalid state transition detection** (prevent illegal state changes)
-- **Analytics correctness after rollback** (verify analytics recalculation)
-- Zone utilization calculations
-- Average parking duration tracking
-- Peak zone identification
-- Cancelled vs completed request ratios rollback
-  
-- **Trip History & Analytics**: 
-  - Maintain complete history of all parking requests
-  - Support queries for:
-    - Average parking duration
-    - Zone utilization rate
-    - Cancelled vs completed requests ratio
-    - Peak usage zones
-  - Traverse history linked list but account for rolled-back operations
-  
-- **Memory Management**: Use raw pointers with proper cleanup in destructors (academic DSA requirement)
+Valid transitions (see [StateValidator.cpp](src/StateValidator.cpp)):
+```
+REQUESTED → ALLOCATED → OCCUPIED → RELEASED
+REQUESTED → CANCELLED
+ALLOCATED → CANCELLED
+```
 
-- **No External Dependencies**: No external map/routing APIs, no global variables
+**Invalid transitions blocked**: e.g., OCCUPIED → REQUESTED, RELEASED → ALLOCATED
 
-## Testing Requirements
+## Key Workflows
 
-Minimum 10 test cases covering:
-- Same-zone & cross-zone allocation
-- Cancellation before/after allocation
-- Rollback correctness & analytics consistency
-- Invalid state transition rejection
+### Building & Running
+```powershell
+# Windows build (see build.ps1)
+.\build.ps1
+.\build\parking_system.exe
+```
 
-## File Organization
+Compilation order matters (see [build.ps1](build.ps1) line 13-24):
+1. StateValidator, Stack (no dependencies)
+2. ParkingSlot, Vehicle (basic entities)
+3. ParkingArea, Zone (contain slots)
+4. ParkingRequest (uses state enums)
+5. RollbackManager, AllocationEngine, AnalyticsEngine (depend on entities)
+6. ParkingSystem (controller)
+7. main.cpp (last)
 
-**Mandatory Multi-File Structure**:
-- `main.cpp`: Entry point and console testing
-- **Core classes must be in separate `.h`/`.cpp` files**:
-  - Header files (`.h`): Declarations only
-  - Implementation files (`.cpp`): All function implementations
-- `planning/roadmap.md`: Full system specification and phase breakdown
+### Allocation Logic (AllocationEngine.cpp)
 
-**Compilation**: Use CMake or qmake for Qt integration (CMake preferred)
+1. **Same-zone first**: `findSlotInZone(requestedZoneId)` - first available slot
+2. **Cross-zone fallback**: `findSlotInAdjacentZones()` - applies 1.5x penalty
+3. **Logging**: `rollbackManager->logAllocation(slotId, vehicleId, prevState)`
 
-## References
+Example from [AllocationEngine.cpp](src/AllocationEngine.cpp#L11-L31):
+```cpp
+ParkingSlot* slot = findSlotInZone(requestedZoneId);
+if (slot != nullptr) {
+    slot->allocate(request->getVehicleId());
+    request->allocateSlot(slot->getSlotId(), false); // false = same-zone
+    rollbackManager->logAllocation(slot->getSlotId(), vehicleId, REQUESTED);
+}
+```
 
-See [planning/roadmap.md](planning/roadmap.md) for complete phase-by-phase implementation guide.
+### Rollback Mechanism (RollbackManager.cpp)
+
+- **Stack stores**: `{slotId, vehicleId, previousState}`
+- **Rollback(k)**: Undo last k operations, restore slot availability + request state
+- **Analytics**: Trip history remains but analytics recalculate to ignore rolled-back requests
+
+## Memory Management Patterns
+
+- **Manual allocation**: `new` for all entities (`Zone*`, `ParkingRequest*`)
+- **Ownership**: ParkingSystem owns zones/requests, deletes in destructor
+- **String handling**: C-strings (`char*`) with manual `new char[]` / `delete[]`
+  - Example in [ParkingSystem.h](src/include/ParkingSystem.h#L16-L28): `TripHistory` struct with custom copy/assignment
+
+## Testing Approach (main.cpp)
+
+10 test functions demonstrating:
+1. Basic same-zone allocation
+2. Cross-zone allocation (when zone full)
+3. Cancellation (before/after allocation)
+4. Invalid state transitions
+5. Rollback operations
+6. Vehicle arrival/exit workflow
+7. Complete parking lifecycle
+8. Multiple concurrent requests
+9. Analytics queries
+10. Edge cases (empty zones, invalid IDs)
+
+Run tests sequentially in `main()` with clear console output separators.
+
+## Current Phase Status
+
+- ✅ **Phase 2 Complete**: Core logic fully functional in console mode
+- 🔄 **Phase 3 In Progress**: AnalyticsEngine implemented, needs refinement
+- ⏳ **Phase 4 Pending**: Qt UI integration (console-first approach validated)
+
+## Common Pitfalls
+
+1. **Never modify header-only templates**: DynamicArray, LinkedList implementations must stay in .h files
+2. **State validation**: Always use `StateValidator::canTransition()` before changing request state
+3. **Memory leaks**: Ensure destructors delete all allocated memory (zones, requests, C-strings)
+4. **Rollback consistency**: After rollback, analytics must recalculate (don't cache stale data)
+5. **Cross-zone penalty**: Set via `AllocationEngine::setCrossZonePenalty()` (default 1.5x)
+
+## Key Files Reference
+
+- [planning/roadmap.md](planning/roadmap.md) - Full phase-by-phase implementation guide
+- [README.md](README.md) - High-level overview and build instructions
+- [src/main.cpp](src/main.cpp) - Test suite demonstrating all features
+- [src/include/Enums.h](src/include/Enums.h) - State machine definitions
