@@ -1,15 +1,15 @@
 # Smart Parking Allocation & Management System
 
-A Data Structures & Algorithms (DSA) academic project implementing an intelligent parking management system in C++ with Qt UI.
+A Data Structures & Algorithms (DSA) academic project implementing an intelligent parking management system in C++ (currently console-based, Qt UI planned for Phase 4).
 
 ## Project Overview
 
 This system manages parking allocation across multiple zones with features including:
-- **Smart Allocation**: Same-zone preference with cross-zone fallback
+- **Smart Allocation**: Same-zone preference with cross-zone fallback and penalty
 - **State Management**: Enforced state machine for request lifecycle
-- **Rollback Operations**: Undo last k allocation operations
-- **Analytics**: Zone utilization, parking duration, peak usage tracking
-- **Qt UI**: User-friendly graphical interface
+- **Rollback Operations**: Stack-based undo of last k allocation operations
+- **Analytics**: Zone utilization, parking duration, revenue tracking
+- **Console Interface**: Comprehensive test suite demonstrating all features
 
 ## Key Constraints
 
@@ -22,8 +22,14 @@ This system manages parking allocation across multiple zones with features inclu
 ## Architecture
 
 ```
-Qt UI → ParkingSystem → AllocationEngine ↔ RollbackManager
-                      → Zone → ParkingArea → ParkingSlot
+ParkingSystem (Controller)
+  ├── AllocationEngine (slot assignment logic)
+  │   └── RollbackManager (stack-based undo)
+  ├── AnalyticsEngine (queries trip history)
+  ├── StateValidator (enforces state machine)
+  └── zones: DynamicArray<Zone*>
+       └── areas: DynamicArray<ParkingArea*>
+            └── slots: DynamicArray<ParkingSlot*>
 ```
 
 ## Entity Hierarchy
@@ -40,28 +46,30 @@ City
 | Phase | Status | Focus Area |
 |-------|--------|------------|
 | **Phase 1** | ✅ Complete | System Design & Planning |
-| **Phase 2** | 🔄 Pending | Core Logic Implementation (Console) |
-| **Phase 3** | 🔄 Pending | Analytics Module |
-| **Phase 4** | 🔄 Pending | Qt UI Integration |
-| **Phase 5** | 🔄 Pending | Testing & Validation |
+| **Phase 2** | ✅ Complete | Core Logic Implementation (Console) |
+| **Phase 3** | ✅ Complete | Analytics Module |
+| **Phase 4** | 🔄 In Progress | Qt UI Integration |
+| **Phase 5** | ⏳ Pending | Testing & Validation |
 
 ## Documentation
 
-- [Roadmap](planning/roadmap.md) - Complete implementation guide
-- [System Design](planning/phase1-system-design.md) - Architecture & design principles
-- [Data Structures](planning/phase1-data-structures.md) - Custom data structure specifications
-- [State Machine](planning/phase1-state-machine.md) - Request lifecycle & transitions
-- [Class Specifications](planning/phase1-class-specifications.md) - Detailed class documentation
+- [Roadmap](planning/roadmap.md) - Complete implementation guide with phase-by-phase details
+- [Copilot Instructions](.github/copilot-instructions.md) - AI agent development guidelines
 
 ## Core Data Structures
 
-- **Dynamic Arrays**: Store zones, areas, and slots
-- **Linked Lists**: Trip history and request logs
-- **Stack**: Rollback operation history
-- **Queue**: Incoming parking requests
-- **Custom Adjacency**: Zone connections
+All custom implementations (no STL containers):
+
+- **DynamicArray<T>**: Auto-resizing array with `add()`, `get()`, `remove()`, `[]` operator
+- **LinkedList<T>**: Singly-linked list with `append()`, `prepend()`, `find()`, iterator support
+- **Stack**: Fixed-size stack (100 operations) storing `OperationLog` structs for rollback
+- **Queue<T>**: Circular queue template (implementation complete, not yet used in workflows)
+
+All templates implemented in headers (required for C++ templates).
 
 ## Request State Machine
+
+Valid transitions enforced by [StateValidator](src/StateValidator.cpp):
 
 ```
 REQUESTED → ALLOCATED → OCCUPIED → RELEASED
@@ -69,40 +77,78 @@ REQUESTED → CANCELLED
 ALLOCATED → CANCELLED
 ```
 
+**Invalid transitions blocked**: e.g., OCCUPIED → REQUESTED, RELEASED → ALLOCATED
+
 ## Build Instructions
 
 ### Prerequisites
-- C++ Compiler (GCC 7+ / MSVC 2017+ / Clang 5+)
-- Qt 6.x (for UI phase)
-- CMake 3.16+ (recommended) or qmake
+- C++ Compiler with C++17 support (MSVC 2017+ / GCC 7+ / Clang 5+)
+- Windows PowerShell (for build script) or manual g++ compilation
 
-### Console Build (Phase 2)
+### Windows Build (Automated)
+```powershell
+# Run PowerShell build script
+.\build.ps1
+
+# Execute the program
+.\build\parking_system.exe
+```
+
+### Manual Build (Cross-Platform)
 ```bash
-g++ -std=c++17 main.cpp -o parking_system
+# Compile all source files (order matters - see build.ps1 for correct sequence)
+g++ -std=c++17 -Isrc/include \
+  src/StateValidator.cpp src/Stack.cpp src/ParkingSlot.cpp src/Vehicle.cpp \
+  src/ParkingArea.cpp src/Zone.cpp src/ParkingRequest.cpp \
+  src/RollbackManager.cpp src/AllocationEngine.cpp src/AnalyticsEngine.cpp \
+  src/ParkingSystem.cpp src/main.cpp \
+  -o parking_system
+
 ./parking_system
 ```
 
-### Qt Build (Phase 4)
-```bash
-mkdir build && cd build
-cmake ..
-cmake --build .
-```
+**Important**: Compilation order matters due to dependencies. See [build.ps1](build.ps1) for the correct sequence.
 
 ## Testing
 
-Minimum 10 test cases covering:
-- Same-zone and cross-zone allocation
-- Cancellation scenarios
-- Rollback correctness
-- Invalid state transition rejection
-- Analytics accuracy
+10 comprehensive test functions in [main.cpp](src/main.cpp) demonstrating:
+
+1. Basic same-zone allocation
+2. Cross-zone allocation with penalty (when zone full)
+3. Cancellation before/after allocation
+4. Invalid state transition rejection (StateValidator)
+5. Rollback operations (undo last k allocations)
+6. Vehicle arrival/exit workflow
+7. Complete parking lifecycle
+8. Multiple concurrent requests
+9. Analytics queries (utilization, revenue, duration)
+10. Edge cases (empty zones, invalid IDs)
+
+Run all tests sequentially via `parking_system.exe`
+
+## Key Features Implemented
+
+### Allocation Logic
+- **Same-zone first**: Searches requested zone for available slots
+- **Cross-zone fallback**: Applies 1.5x penalty when same-zone unavailable
+- **Automatic logging**: All allocations logged to rollback stack
+
+### Memory Management
+- **Manual allocation**: All entities use `new`/`delete` (no smart pointers)
+- **Ownership model**: ParkingSystem owns zones/requests, manages cleanup
+- **C-string handling**: Manual `new char[]`/`delete[]` for string data
+
+### State Validation
+- **Strict enforcement**: StateValidator blocks invalid transitions
+- **Lifecycle tracking**: Each request progresses through defined states
+- **Rollback consistency**: Analytics recalculate after rollback operations
 
 ## Academic Context
 
 **Course**: Data Structures & Algorithms  
 **Semester**: 3  
-**Focus**: Manual implementation of fundamental data structures
+**Institution**: UMT  
+**Focus**: Manual implementation of fundamental data structures without STL containers
 
 ## License
 
