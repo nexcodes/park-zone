@@ -5,6 +5,7 @@
 ParkingSystem::ParkingSystem() : nextRequestId(1) {
     rollbackManager = new RollbackManager(this);
     allocationEngine = new AllocationEngine(this, rollbackManager);
+    analyticsEngine = new AnalyticsEngine(&tripHistory, &zones);
 }
 
 ParkingSystem::~ParkingSystem() {
@@ -20,6 +21,7 @@ ParkingSystem::~ParkingSystem() {
     
     delete allocationEngine;
     delete rollbackManager;
+    delete analyticsEngine;
 }
 
 void ParkingSystem::addZone(Zone* zone) {
@@ -315,3 +317,24 @@ void ParkingSystem::displayTripHistory() {
     }
     std::cout << "========================\n" << std::endl;
 }
+
+AnalyticsEngine* ParkingSystem::getAnalyticsEngine() {
+    return analyticsEngine;
+}
+
+void ParkingSystem::generateAnalyticsSummary() {
+    analyticsEngine->generateSummaryReport();
+}
+
+void ParkingSystem::generateDetailedAnalytics() {
+    analyticsEngine->generateDetailedReport();
+}
+
+void ParkingSystem::generateZoneReport(int zoneId) {
+    analyticsEngine->generateZoneReport(zoneId);
+}
+
+void ParkingSystem::generateTimeBasedReport() {
+    analyticsEngine->generateTimeBasedReport();
+}
+

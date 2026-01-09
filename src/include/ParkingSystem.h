@@ -6,6 +6,7 @@
 #include "ParkingRequest.h"
 #include "AllocationEngine.h"
 #include "RollbackManager.h"
+#include "AnalyticsEngine.h"
 #include "LinkedList.h"
 #include "Queue.h"
 #include "DynamicArray.h"
@@ -76,6 +77,7 @@ private:
     
     AllocationEngine* allocationEngine;
     RollbackManager* rollbackManager;
+    AnalyticsEngine* analyticsEngine;
     
     int nextRequestId;
     
@@ -115,6 +117,13 @@ public:
     int getTotalRequests() const;
     int getCompletedTrips() const;
     int getCancelledRequests() const;
+    
+    // Enhanced Analytics via AnalyticsEngine
+    AnalyticsEngine* getAnalyticsEngine();
+    void generateAnalyticsSummary();
+    void generateDetailedAnalytics();
+    void generateZoneReport(int zoneId);
+    void generateTimeBasedReport();
     
     // Display
     void displaySystemStatus();

@@ -19,6 +19,7 @@ $sources = @(
     "src/ParkingRequest.cpp",
     "src/RollbackManager.cpp",
     "src/AllocationEngine.cpp",
+    "src/AnalyticsEngine.cpp",
     "src/ParkingSystem.cpp",
     "src/main.cpp"
 )
